@@ -71,7 +71,7 @@ fn main() {
 }
 
 async fn run() {
-    let config = Config::open("config.toml").expect("error finding config.toml");
+    let config = Config::open("bot/config.toml").expect("error finding bot/config.toml");
     let intents = GatewayIntents::empty();
     let options = FrameworkOptions {
         on_error: |e| Box::pin(core::on_error(e)),
