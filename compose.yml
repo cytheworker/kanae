@@ -1,0 +1,5 @@
+services:
+  bot:
+    build:
+      dockerfile: bot/Dockerfile
+    restart: "no"
