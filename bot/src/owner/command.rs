@@ -17,6 +17,15 @@ use tokio::time::Duration;
 use crate::helper::{Context, Result};
 use crate::owner::{ActivityType, StatusType};
 
+#[poise::command(
+    prefix_command, owners_only, guild_only,
+    rename = "owner",
+    subcommands("presence", "register", "shutdown"),
+)]
+pub async fn group(_: Context<'_>) -> Result<()> {
+    Ok(())
+}
+
 #[poise::command(prefix_command, owners_only, guild_only)]
 pub async fn presence(
     context: Context<'_>,
