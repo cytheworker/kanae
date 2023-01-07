@@ -72,7 +72,10 @@ async fn run() {
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
 
-    let commands = vec![owner::shutdown()];
+    let commands = vec![
+        owner::presence(),
+        owner::shutdown(),
+    ];
     let prefix_options = PrefixFrameworkOptions {
         prefix: Some("/".to_owned()),
         ..Default::default()

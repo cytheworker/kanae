@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod command;
-mod parameter;
-mod state;
+use poise::ChoiceParameter;
 
-pub use command::{presence, shutdown};
-pub use parameter::{ActivityType, StatusType};
-pub use state::{data, Data};
+#[derive(ChoiceParameter)]
+pub enum ActivityType {
+    Playing,
+    Listening,
+    Watching,
+    Competing,
+}
+
+#[derive(ChoiceParameter)]
+pub enum StatusType {
+    Dnd,
+    Idle,
+    Invisible,
+    Offline,
+    Online,
+}
