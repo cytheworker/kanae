@@ -76,7 +76,7 @@ pub async fn shutdown(context: Context<'_>, after: Option<u64>) -> Result<()> {
 
     if let Some(after) = after {
         if !(1..=60).contains(&after) {
-            response.push_str("\"after\" parameter must be in between 1 and 60");
+            response.push_str("\n\"after\" parameter must be in between 1 and 60");
             context.say(response).await?;
 
             return Ok(())
