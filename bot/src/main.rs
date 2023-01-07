@@ -74,6 +74,7 @@ async fn run() {
 
     let commands = vec![
         owner::presence(),
+        owner::register(),
         owner::shutdown(),
     ];
     let prefix_options = PrefixFrameworkOptions {

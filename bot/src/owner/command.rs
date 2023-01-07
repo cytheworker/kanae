@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use poise::serenity_prelude::{Activity, OnlineStatus};
+use poise::serenity_prelude::{Activity, GuildId, OnlineStatus};
 use tokio::time::Duration;
 use crate::helper::{Context, Result};
 use crate::owner::{ActivityType, StatusType};
@@ -61,6 +61,35 @@ pub async fn presence(
 }
 
 #[poise::command(prefix_command, owners_only, guild_only)]
+pub async fn register(context: Context<'_>, scope: String) -> Result<()> {
+    let http = context.serenity_context();
+    let commands = &context.framework().options().commands;
+
+    match scope.as_str() {
+        "here" => {
+            context.say("registering commands locally...").await?;
+
+            let guild_id = context.guild_id().unwrap();
+            poise::builtins::register_in_guild(&http, commands, guild_id).await?;
+        }
+        "everywhere" => {
+            context.say("registering commands globally...").await?;
+            poise::builtins::register_globally(&http, commands).await?;
+        }
+        scope => {
+            if let Ok(guild_id) = scope.parse::<u64>() {
+                context.say(format!("registering commands for {guild_id}...")).await?;
+                poise::builtins::register_in_guild(&http, commands, GuildId(guild_id)).await?;
+            } else {
+                context.say("\"scope\" parameter must be \"here\", \"everywhere\", or GUILD_ID!").await?;
+            };
+        }
+    }
+
+    Ok(())
+}
+
+#[poise::command(prefix_command, owners_only, guild_only)]
 pub async fn shutdown(context: Context<'_>, after: Option<u64>) -> Result<()> {
     let framework = context.framework();
     let owner = framework.user_data().await.owner();
@@ -76,7 +105,7 @@ pub async fn shutdown(context: Context<'_>, after: Option<u64>) -> Result<()> {
 
     if let Some(after) = after {
         if !(1..=60).contains(&after) {
-            response.push_str("\n\"after\" parameter must be in between 1 and 60");
+            response.push_str("\n\"after\" parameter must be in between 1 and 60!");
             context.say(response).await?;
 
             return Ok(())

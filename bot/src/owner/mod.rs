@@ -16,6 +16,6 @@ mod command;
 mod parameter;
 mod state;
 
-pub use command::{presence, shutdown};
+pub use command::{presence, register, shutdown};
 pub use parameter::{ActivityType, StatusType};
 pub use state::{data, Data};
