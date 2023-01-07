@@ -15,31 +15,45 @@
 use poise::Framework;
 use poise::serenity_prelude::{Context, Ready};
 use serde::Deserialize;
-use crate::core;
-use crate::helper::{Error, Result};
+use crate::{core, owner};
+use crate::helper::{ArcMut, Error, Result};
 
-pub struct Data;
+// ==================== BUILDER ==================== //
+
+pub async fn data(
+    context: &Context,
+    ready: &Ready,
+    framework: &Framework<Data, Error>,
+) -> Result<Data> {
+    let data = Data {
+        owner: owner::data(context, ready, framework).await?,
+    };
+
+    Ok(data)
+}
+
+pub fn config(path: &str) -> Result<Config> {
+    let content = std::fs::read_to_string(path)?;
+    let config = toml::from_str(&content)?;
+
+    Ok(config)
+}
+
+// ==================== STRUCT ==================== //
+
+pub struct Data {
+    pub owner: ArcMut<owner::Data>,
+}
 
 #[derive(Deserialize)]
 pub struct Config {
     pub core: core::Config,
 }
 
+// ==================== IMPL ==================== //
+
 impl Data {
-    pub async fn build(
-        _: &Context,
-        _: &Ready,
-        _: &Framework<Data, Error>,
-    ) -> Result<Self> {
-        Ok(Data {})
-    }
-}
-
-impl Config {
-    pub fn open(path: &str) -> Result<Self> {
-        let content = std::fs::read_to_string(path)?;
-        let config = toml::from_str(&content)?;
-
-        Ok(config)
+    pub fn owner(&self) -> ArcMut<owner::Data> {
+        self.owner.clone()
     }
 }

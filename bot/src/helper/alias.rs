@@ -13,6 +13,19 @@
 // limitations under the License.
 
 use std::{error, result};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use crate::base::Data;
+
+// ==================== TYPE ==================== //
 
 pub type Error = Box<dyn error::Error + Send + Sync>;
 pub type Result<T> = result::Result<T, Error>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
+pub type ArcMut<T> = Arc<Mutex<T>>;
+
+// ==================== BUILDER ==================== //
+
+pub fn arcmut<T>(value: T) -> ArcMut<T> {
+    Arc::new(Mutex::new(value))
+}

@@ -12,6 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod state;
+use poise::Framework;
+use poise::serenity_prelude::{Context, Ready};
+use tokio::task::JoinHandle;
+use crate::{base, helper};
+use crate::helper::{ArcMut, Error, Result};
 
-pub use state::{config, data, Config, Data};
+pub async fn data(
+    _: &Context,
+    _: &Ready,
+    _: &Framework<base::Data, Error>,
+) -> Result<ArcMut<Data>> {
+    let data = helper::arcmut(Data {
+        shutdown: None,
+    });
+
+    Ok(data)
+}
+
+pub struct Data {
+    pub shutdown: Option<JoinHandle<Result<()>>>,
+}

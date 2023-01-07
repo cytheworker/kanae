@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use poise::{FrameworkContext, FrameworkError, Event};
-use poise::serenity_prelude as serenity;
+use poise::serenity_prelude::{self as serenity, CommandDataOption};
 use crate::base::Data;
 use crate::helper::{Error, Result};
 
@@ -35,40 +35,49 @@ pub async fn event_handler(
 pub async fn on_error(error: FrameworkError<'_, Data, Error>) {
     match error {
         FrameworkError::Setup { error, .. } => {
-            let message = "error building data";
-            tracing::info!(message, error);
+            tracing::error!(
+                message = "error building data",
+                error,
+            );
         }
         FrameworkError::EventHandler { error, event, .. } => {
-            let message = "error dispatching handler";
-            let event = event.name();
-            tracing::info!(message, event, error);
+            tracing::error!(
+                message = "error dispatching handler",
+                event = event.name(),
+                error,
+            );
         }
         FrameworkError::Command { error, ctx } => {
-            let message = "error invoking command";
-            let (name, arguments) = match ctx {
-                poise::Context::Application(ctx) => {
-                    let name = &ctx.command.qualified_name;
-                    let pairs = ctx.args
+            match ctx {
+                poise::Context::Application(context) => {
+                    let mut arguments = String::new();
+                    for argument in context.args
                         .iter()
-                        .map(|option| {
-                            let value = match &option.value {
-                                Some(value) => value.to_string(),
-                                None => "...".to_owned(),
-                            };
-                            format!("{}={}", option.name, value)
-                        })
-                        .collect::<Vec<String>>()
-                        .join(" ");
-                    let arguments = format!("({})", pairs);
-                    (name, arguments)
+                        .map(|CommandDataOption { name, value, .. }| {
+                            let value = value
+                                .as_ref()
+                                .map_or_else(|| "...".to_owned(), |value| value.to_string());
+                            format!("{name}={value} ")
+                        }) {
+                        arguments.push_str(&argument);
+                    }
+
+                    tracing::error!(
+                        message = "error invoking application command",
+                        name = context.command.qualified_name,
+                        arguments = format!("({})", arguments.trim_end()),
+                        error,
+                    );
                 }
-                poise::Context::Prefix(ctx) => {
-                    let name = &ctx.command.qualified_name;
-                    let arguments = ctx.args.to_owned();
-                    (name, arguments)
+                poise::Context::Prefix(context) => {
+                    tracing::error!(
+                        message = "error invoking prefix command",
+                        name = context.command.qualified_name,
+                        arguments = context.args,
+                        error,
+                    );
                 }
             };
-            tracing::info!(message, name, arguments, error);
         }
         _ => (),
     };
