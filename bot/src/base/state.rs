@@ -18,8 +18,6 @@ use serde::Deserialize;
 use crate::{core, owner};
 use crate::helper::{ArcMut, Error, Result};
 
-// ==================== BUILDER ==================== //
-
 pub async fn data(
     context: &Context,
     ready: &Ready,
@@ -39,8 +37,6 @@ pub fn config(path: &str) -> Result<Config> {
     Ok(config)
 }
 
-// ==================== STRUCT ==================== //
-
 pub struct Data {
     pub owner: ArcMut<owner::Data>,
 }
@@ -49,8 +45,6 @@ pub struct Data {
 pub struct Config {
     pub core: core::Config,
 }
-
-// ==================== IMPL ==================== //
 
 impl Data {
     pub fn owner(&self) -> ArcMut<owner::Data> {
