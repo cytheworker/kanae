@@ -75,13 +75,13 @@ pub async fn register(context: Context<'_>, scope: String) -> Result<()> {
     let commands = &context.framework().options().commands;
 
     match scope.as_str() {
-        "here" => {
+        "local" => {
             context.say("registering commands locally...").await?;
 
             let guild_id = context.guild_id().unwrap();
             poise::builtins::register_in_guild(&http, commands, guild_id).await?;
         }
-        "everywhere" => {
+        "global" => {
             context.say("registering commands globally...").await?;
             poise::builtins::register_globally(&http, commands).await?;
         }
@@ -90,7 +90,7 @@ pub async fn register(context: Context<'_>, scope: String) -> Result<()> {
                 context.say(format!("registering commands for {guild_id}...")).await?;
                 poise::builtins::register_in_guild(&http, commands, GuildId(guild_id)).await?;
             } else {
-                context.say("\"scope\" parameter must be \"here\", \"everywhere\", or GUILD_ID!").await?;
+                context.say("\"scope\" parameter must be \"local\", \"global\", or GUILD_ID!").await?;
             };
         }
     }
