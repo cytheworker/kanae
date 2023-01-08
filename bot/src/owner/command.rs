@@ -20,9 +20,38 @@ use crate::owner::{ActivityType, StatusType};
 #[poise::command(
     prefix_command, owners_only, guild_only,
     rename = "owner",
-    subcommands("presence", "register", "shutdown"),
+    subcommands("avatar", "presence", "register", "shutdown"),
 )]
 pub async fn group(_: Context<'_>) -> Result<()> {
+    Ok(())
+}
+
+#[poise::command(prefix_command, owners_only, guild_only)]
+pub async fn avatar(context: Context<'_>) -> Result<()> {
+    let attachments = if let Context::Prefix(context) = context {
+        &context.msg.attachments
+    } else {
+        unreachable!();
+    };
+    if attachments.is_empty() {
+        context.say("attachment is required!").await?;
+        return Ok(())
+    }
+
+    let attachment = &attachments[0];
+    let base64 = {
+        let raw = attachment.download().await?;
+        base64::encode(raw)
+    };
+    let avatar = format!("data:image/png;base64,{base64}");
+
+    let serenity_context = context.serenity_context();
+
+    context.say("setting avatar...").await?;
+    serenity_context.cache
+        .current_user()
+        .edit(&serenity_context, |profile| profile.avatar(Some(&avatar))).await?;
+
     Ok(())
 }
 
