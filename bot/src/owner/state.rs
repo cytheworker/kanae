@@ -14,40 +14,22 @@
 
 use poise::Framework;
 use poise::serenity_prelude::{Context, Ready};
-use serde::Deserialize;
-use crate::{core, owner};
+use tokio::task::JoinHandle;
+use crate::{base, helper};
 use crate::helper::{ArcMut, Error, Result};
 
 pub async fn data(
-    context: &Context,
-    ready: &Ready,
-    framework: &Framework<Data, Error>,
-) -> Result<Data> {
-    let data = Data {
-        owner: owner::data(context, ready, framework).await?,
-    };
+    _: &Context,
+    _: &Ready,
+    _: &Framework<base::Data, Error>,
+) -> Result<ArcMut<Data>> {
+    let data = helper::arcmut(Data {
+        shutdown: None,
+    });
 
     Ok(data)
 }
 
-pub fn config(path: &str) -> Result<Config> {
-    let content = std::fs::read_to_string(path)?;
-    let config = toml::from_str(&content)?;
-
-    Ok(config)
-}
-
 pub struct Data {
-    pub owner: ArcMut<owner::Data>,
-}
-
-#[derive(Deserialize)]
-pub struct Config {
-    pub core: core::Config,
-}
-
-impl Data {
-    pub fn owner(&self) -> ArcMut<owner::Data> {
-        self.owner.clone()
-    }
+    pub shutdown: Option<JoinHandle<Result<()>>>,
 }

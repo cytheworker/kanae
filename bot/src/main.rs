@@ -15,33 +15,26 @@
 mod base;
 mod core;
 mod helper;
+mod owner;
 
-use poise::{Framework, FrameworkOptions};
-use poise::serenity_prelude::{GatewayIntents};
+use poise::{Framework, FrameworkOptions, PrefixFrameworkOptions};
+use poise::serenity_prelude::GatewayIntents;
 use tokio::runtime::Builder;
 use tracing::Level;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
-use crate::base::{Config, Data};
 
 fn main() {
-    let (writer, _guards) = {
-        let (outwriter, outguard) = tracing_appender::non_blocking(std::io::stdout());
-        let outwriter = outwriter.with_min_level(Level::INFO);
-
-        let (errwriter, errguard) = tracing_appender::non_blocking(std::io::stderr());
-        let errwriter = errwriter.with_max_level(Level::WARN);
-
-        let writer = outwriter
-            .and(errwriter)
-            .with_filter(|metadata| metadata
-                .module_path()
-                .map_or(false, |path| path.contains("bot"))
-            );
-        let guards = (outguard, errguard);
-
-        (writer, guards)
-    };
+    let (outwriter, _outguard) = tracing_appender::non_blocking(std::io::stdout());
+    let outwriter = outwriter.with_min_level(Level::INFO);
+    let (errwriter, _errguard) = tracing_appender::non_blocking(std::io::stderr());
+    let errwriter = errwriter.with_max_level(Level::WARN);
+    let writer = outwriter
+        .and(errwriter)
+        .with_filter(|metadata| metadata
+            .module_path()
+            .map_or(false, |path| path.contains("bot"))
+        );
 
     let description = time::macros::format_description!(
         "[day]/[month]/[year] \
@@ -71,11 +64,21 @@ fn main() {
 }
 
 async fn run() {
-    let config = Config::open("bot/config.toml").expect("error finding bot/config.toml");
-    let intents = GatewayIntents::empty();
+    let config = base::config("bot/config.toml").expect("error finding bot/config.toml");
+    let intents = GatewayIntents::empty()
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT;
+
+    let commands = vec![owner::group()];
+    let prefix_options = PrefixFrameworkOptions {
+        prefix: Some("/".to_owned()),
+        ..Default::default()
+    };
     let options = FrameworkOptions {
+        commands,
         on_error: |e| Box::pin(core::on_error(e)),
         event_handler: |c, e, f, d| Box::pin(core::event_handler(c, e, f, d)),
+        prefix_options,
         ..Default::default()
     };
 
@@ -83,7 +86,7 @@ async fn run() {
         .token(&config.core.token)
         .intents(intents)
         .options(options)
-        .setup(|c, r, f| Box::pin(async move { Ok(Data::build(c, r, f).await?) }))
+        .setup(|c, r, f| Box::pin(async move { base::data(c, r, f).await }))
         .build().await
         .expect("error building framework");
 
@@ -93,12 +96,9 @@ async fn run() {
         #[cfg(unix)] {
             use tokio::signal::unix::{self, SignalKind};
 
-            let mut hangup = unix::signal(SignalKind::hangup())
-                .expect("error listening SIGHUP");
-            let mut interrupt = unix::signal(SignalKind::interrupt())
-                .expect("error listening SIGINT");
-            let mut terminate = unix::signal(SignalKind::terminate())
-                .expect("error listening SIGTERM");
+            let mut hangup = unix::signal(SignalKind::hangup()).expect("error listening SIGHUP");
+            let mut interrupt = unix::signal(SignalKind::interrupt()).expect("error listening SIGINT");
+            let mut terminate = unix::signal(SignalKind::terminate()).expect("error listening SIGTERM");
 
             tokio::select!{
                 s = hangup.recv() => s.unwrap(),
@@ -110,10 +110,8 @@ async fn run() {
         #[cfg(windows)] {
             use tokio::signal::windows;
 
-            let ctrl_break = windows::ctrl_break()
-                .expect("error listening CTRL-BREAK");
-            let ctrl_c = windows::ctrl_c()
-                .expect("error listening CTRL-C");
+            let ctrl_break = windows::ctrl_break().expect("error listening CTRL-BREAK");
+            let ctrl_c = windows::ctrl_c().expect("error listening CTRL-C");
 
             tokio::select!{
                 s = ctrl_break.recv() => s.unwrap(),
@@ -121,12 +119,8 @@ async fn run() {
             };
         }
 
-        shard_manager
-            .lock().await
-            .shutdown_all().await;
+        shard_manager.lock().await.shutdown_all().await;
     });
 
-    framework
-        .start().await
-        .expect("error starting framework");
+    framework.start().await.expect("error starting framework");
 }

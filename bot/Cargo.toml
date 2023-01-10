@@ -7,10 +7,11 @@ authors = ["cytheworker <cytheworker@gmail.com>"]
 license = "Apache-2.0"
 
 [dependencies]
+base64 = "0.20.0"
 poise = "0.5.2"
 serde = { version = "1.0.152", features = ["derive"] }
 time = { version = "0.3.17", features = ["macros"] }
-tokio = { version = "1.23.0", features = ["rt-multi-thread", "signal"] }
+tokio = { version = "1.23.0", features = ["rt-multi-thread", "signal", "time"] }
 toml = "0.5.10"
 tracing = "0.1.37"
 tracing-appender = "0.2.2"

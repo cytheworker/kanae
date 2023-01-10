@@ -12,6 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod state;
+use poise::ChoiceParameter;
 
-pub use state::{config, data, Config, Data};
+#[derive(ChoiceParameter)]
+pub enum ActivityType {
+    Playing,
+    Listening,
+    Watching,
+    Competing,
+}
+
+#[derive(ChoiceParameter)]
+pub enum StatusType {
+    Dnd,
+    Idle,
+    Invisible,
+    Offline,
+    Online,
+}

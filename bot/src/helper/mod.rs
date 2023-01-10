@@ -14,4 +14,4 @@
 
 mod alias;
 
-pub use alias::{Error, Result};
+pub use alias::{arcmut, ArcMut, Context, Error, Result};

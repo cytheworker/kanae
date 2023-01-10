@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod command;
+mod parameter;
 mod state;
 
-pub use state::{config, data, Config, Data};
+pub use command::{avatar, group, presence, register, shutdown};
+pub use parameter::{ActivityType, StatusType};
+pub use state::{data, Data};
