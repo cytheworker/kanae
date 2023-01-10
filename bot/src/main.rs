@@ -25,14 +25,10 @@ use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 fn main() {
-    let (outwriter, _outguard) = {
-        let (outwriter, outguard) = tracing_appender::non_blocking(std::io::stdout());
-        (outwriter.with_min_level(Level::INFO), outguard)
-    };
-    let (errwriter, _errguard) = {
-        let (errwriter, errguard) = tracing_appender::non_blocking(std::io::stderr());
-        (errwriter.with_max_level(Level::WARN), errguard)
-    };
+    let (outwriter, _outguard) = tracing_appender::non_blocking(std::io::stdout());
+    let outwriter = outwriter.with_min_level(Level::INFO);
+    let (errwriter, _errguard) = tracing_appender::non_blocking(std::io::stderr());
+    let errwriter = errwriter.with_max_level(Level::WARN);
     let writer = outwriter
         .and(errwriter)
         .with_filter(|metadata| metadata
@@ -40,10 +36,11 @@ fn main() {
             .map_or(false, |path| path.contains("bot"))
         );
 
-    let timer = UtcTime::new(time::macros::format_description!(
+    let description = time::macros::format_description!(
         "[day]/[month]/[year] \
         [hour repr:24]:[minute]:[second].[subsecond digits:3]"
-    ));
+    );
+    let timer = UtcTime::new(description);
     let format = tracing_subscriber::fmt::format()
         .with_ansi(true)
         .with_timer(timer)
@@ -99,12 +96,9 @@ async fn run() {
         #[cfg(unix)] {
             use tokio::signal::unix::{self, SignalKind};
 
-            let mut hangup = unix::signal(SignalKind::hangup())
-                .expect("error listening SIGHUP");
-            let mut interrupt = unix::signal(SignalKind::interrupt())
-                .expect("error listening SIGINT");
-            let mut terminate = unix::signal(SignalKind::terminate())
-                .expect("error listening SIGTERM");
+            let mut hangup = unix::signal(SignalKind::hangup()).expect("error listening SIGHUP");
+            let mut interrupt = unix::signal(SignalKind::interrupt()).expect("error listening SIGINT");
+            let mut terminate = unix::signal(SignalKind::terminate()).expect("error listening SIGTERM");
 
             tokio::select!{
                 s = hangup.recv() => s.unwrap(),
@@ -116,10 +110,8 @@ async fn run() {
         #[cfg(windows)] {
             use tokio::signal::windows;
 
-            let ctrl_break = windows::ctrl_break()
-                .expect("error listening CTRL-BREAK");
-            let ctrl_c = windows::ctrl_c()
-                .expect("error listening CTRL-C");
+            let ctrl_break = windows::ctrl_break().expect("error listening CTRL-BREAK");
+            let ctrl_c = windows::ctrl_c().expect("error listening CTRL-C");
 
             tokio::select!{
                 s = ctrl_break.recv() => s.unwrap(),
@@ -127,12 +119,8 @@ async fn run() {
             };
         }
 
-        shard_manager
-            .lock().await
-            .shutdown_all().await;
+        shard_manager.lock().await.shutdown_all().await;
     });
 
-    framework
-        .start().await
-        .expect("error starting framework");
+    framework.start().await.expect("error starting framework");
 }

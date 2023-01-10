@@ -28,24 +28,17 @@ pub async fn group(_: Context<'_>) -> Result<()> {
 
 #[poise::command(prefix_command, owners_only, guild_only)]
 pub async fn avatar(context: Context<'_>) -> Result<()> {
-    let attachments = if let Context::Prefix(context) = context {
-        &context.msg.attachments
-    } else {
-        unreachable!();
-    };
+    let Context::Prefix(prefix_context) = context else { unreachable!() };
+    let attachments = &prefix_context.msg.attachments;
+
     if attachments.is_empty() {
         context.say("attachment is required!").await?;
         return Ok(())
     }
 
-    let attachment = &attachments[0];
-    let base64 = {
-        let raw = attachment.download().await?;
-        base64::encode(raw)
-    };
-    let avatar = format!("data:image/png;base64,{base64}");
-
     let serenity_context = context.serenity_context();
+    let base64 = attachments[0].download().await.map(base64::encode)?;
+    let avatar = format!("data:image/png;base64,{base64}");
 
     context.say("setting avatar...").await?;
     serenity_context.cache
@@ -62,26 +55,15 @@ pub async fn presence(
     activity: Option<ActivityType>,
     #[rest] name: Option<String>,
 ) -> Result<()> {
-    let activity = match (activity, name) {
-        (Some(activity), Some(name)) => {
-            Some(match activity {
-                ActivityType::Playing => Activity::playing(name),
-                ActivityType::Listening => Activity::listening(name),
-                ActivityType::Watching => Activity::watching(name),
-                ActivityType::Competing => Activity::competing(name),
-            })
+    let name = name.unwrap_or_else(|| "...".to_owned());
+    let activity = activity.map(|activity| {
+        match activity {
+            ActivityType::Playing => Activity::playing(name),
+            ActivityType::Listening => Activity::listening(name),
+            ActivityType::Watching => Activity::watching(name),
+            ActivityType::Competing => Activity::competing(name),
         }
-        (Some(activity), None) => {
-            Some(match activity {
-                ActivityType::Playing => Activity::playing("..."),
-                ActivityType::Listening => Activity::listening("..."),
-                ActivityType::Watching => Activity::watching("..."),
-                ActivityType::Competing => Activity::competing("..."),
-            })
-        }
-        _ => None,
-    };
-
+    });
     let status = match status {
         StatusType::Dnd => OnlineStatus::DoNotDisturb,
         StatusType::Idle => OnlineStatus::Idle,
@@ -91,36 +73,35 @@ pub async fn presence(
     };
 
     context.say("setting presence...").await?;
-    context
-        .serenity_context()
-        .set_presence(activity, status).await;
+    context.serenity_context().set_presence(activity, status).await;
 
     Ok(())
 }
 
 #[poise::command(prefix_command, owners_only, guild_only)]
 pub async fn register(context: Context<'_>, scope: String) -> Result<()> {
-    let http = context.serenity_context();
+    let serenity_context = context.serenity_context();
     let commands = &context.framework().options().commands;
 
     match scope.as_str() {
         "local" => {
             context.say("registering commands locally...").await?;
-
             let guild_id = context.guild_id().unwrap();
-            poise::builtins::register_in_guild(&http, commands, guild_id).await?;
+            poise::builtins::register_in_guild(&serenity_context, commands, guild_id).await?;
         }
         "global" => {
             context.say("registering commands globally...").await?;
-            poise::builtins::register_globally(&http, commands).await?;
+            poise::builtins::register_globally(&serenity_context, commands).await?;
         }
         scope => {
-            if let Ok(guild_id) = scope.parse::<u64>() {
-                context.say(format!("registering commands for {guild_id}...")).await?;
-                poise::builtins::register_in_guild(&http, commands, GuildId(guild_id)).await?;
-            } else {
+            let Ok(guild_id) = scope.parse::<u64>().map(GuildId) else {
                 context.say("\"scope\" parameter must be \"local\", \"global\", or GUILD_ID!").await?;
+                return Ok(())
             };
+
+            let response = format!("registering commands for {guild_id}...");
+            context.say(response).await?;
+            poise::builtins::register_in_guild(&serenity_context, commands, guild_id).await?;
         }
     }
 
@@ -141,38 +122,38 @@ pub async fn shutdown(context: Context<'_>, after: Option<u64>) -> Result<()> {
 
     let shard_manager = framework.shard_manager();
 
-    if let Some(after) = after {
-        if !(1..=60).contains(&after) {
-            response.push_str("\n\"after\" parameter must be in between 1 and 60!");
-            context.say(response).await?;
-
-            return Ok(())
-        }
-
-        let channel_id = context.channel_id();
-        let http = context.serenity_context().http.clone();
-
-        owner.shutdown.replace(tokio::spawn(async move {
-            response.push_str(&format!("\nshutting down in about {after} minutes!"));
-            channel_id.say(&http, response).await?;
-
-            tokio::time::sleep(Duration::from_secs(after * 60)).await;
-
-            channel_id.say(&http, "shutting down...").await?;
-            shard_manager
-                .lock().await
-                .shutdown_all().await;
-
-            Result::Ok(())
-        }));
-    } else {
+    let Some(after) = after else {
         response.push_str("\nshutting down...");
         context.say(response).await?;
+        shard_manager.lock().await.shutdown_all().await;
 
-        shard_manager
-            .lock().await
-            .shutdown_all().await;
+        return Ok(())
+    };
+
+    if !(1..=60).contains(&after) {
+        response.push_str("\n\"after\" parameter must be in between 1 and 60!");
+        context.say(response).await?;
+
+        return Ok(())
     }
+
+    let channel_id = context.channel_id();
+    let http = context.serenity_context().http.clone();
+
+    let shutdown = tokio::spawn(async move {
+        let text = format!("\nshutting down in about {after} minutes!");
+        response.push_str(&text);
+        channel_id.say(&http, response).await?;
+
+        let duration = Duration::from_secs(after * 60);
+        tokio::time::sleep(duration).await;
+
+        channel_id.say(&http, "shutting down...").await?;
+        shard_manager.lock().await.shutdown_all().await;
+
+        Result::Ok(())
+    });
+    owner.shutdown.replace(shutdown);
 
     Ok(())
 }

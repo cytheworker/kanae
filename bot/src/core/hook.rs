@@ -35,47 +35,37 @@ pub async fn event_handler(
 pub async fn on_error(error: FrameworkError<'_, Data, Error>) {
     match error {
         FrameworkError::Setup { error, .. } => {
-            tracing::error!(
-                message = "error building data",
-                error,
-            );
+            let message = "error building data";
+            tracing::error!(message, error);
         }
         FrameworkError::EventHandler { error, event, .. } => {
-            tracing::error!(
-                message = "error dispatching handler",
-                event = event.name(),
-                error,
-            );
+            let message = "error dispatching handler";
+            let event = event.name();
+            tracing::error!(message, event, error);
         }
         FrameworkError::Command { error, ctx } => {
             match ctx {
                 poise::Context::Application(context) => {
-                    let mut arguments = String::new();
-                    for argument in context.args
+                    let message = "error invoking application command";
+                    let name = &context.command.qualified_name;
+                    let options = context.args
                         .iter()
                         .map(|CommandDataOption { name, value, .. }| {
                             let value = value
                                 .as_ref()
                                 .map_or_else(|| "...".to_owned(), |value| value.to_string());
-                            format!("{name}={value} ")
-                        }) {
-                        arguments.push_str(&argument);
-                    }
-
-                    tracing::error!(
-                        message = "error invoking application command",
-                        name = context.command.qualified_name,
-                        arguments = format!("({})", arguments.trim_end()),
-                        error,
-                    );
+                            format!("{name}={value}")
+                        })
+                        .collect::<Vec<String>>()
+                        .join(" ");
+                    let arguments = format!("({options})");
+                    tracing::error!(message, name, arguments, error);
                 }
                 poise::Context::Prefix(context) => {
-                    tracing::error!(
-                        message = "error invoking prefix command",
-                        name = context.command.qualified_name,
-                        arguments = context.args,
-                        error,
-                    );
+                    let message = "error invoking prefix command";
+                    let name = &context.command.qualified_name;
+                    let arguments = context.args;
+                    tracing::error!(message, name, arguments, error);
                 }
             };
         }
